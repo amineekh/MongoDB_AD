@@ -3,18 +3,26 @@ package Base_NoSQL_MongoDB;
 import com.mongodb.CreateIndexCommitQuorum;
 import com.mongodb.client.*;
 import com.mongodb.client.result.DeleteResult;
+import org.bson.BsonDocument;
+import org.bson.BsonObjectId;
 import org.bson.Document;
+import org.bson.types.ObjectId;
 
 import java.io.FileWriter;
 import java.io.IOException;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Scanner;
+import org.bson.Document;
+import org.bson.conversions.Bson;
+import com.mongodb.client.result.UpdateResult;
 
 public class Main {
     // Declaración variable estáticas para el scanner
     public static  Scanner sc = new Scanner(System.in);
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws ParseException {
         //Creamos el objeto escanner para poder pedir datos al usuario por teclado
         Scanner sc = new Scanner(System.in);
         // 1. Declaromos una variable opcion y le asignamos valor 0
@@ -74,7 +82,7 @@ public class Main {
 
                     break;
                 case 7:
-
+                    actualizar_registro();
 
                     break;
 
@@ -86,44 +94,84 @@ public class Main {
 
     }
 
-    private static void borrar_registro() {
+    private static void actualizar_registro() {
         Scanner sc = new Scanner(System.in);
+
+        // Pedir al usuario el ID del registro a actualizar
+        System.out.println("Introduzca el ID del registro que desea actualizar: ");
+        String idStr = sc.nextLine();
+
+        // Convertir la cadena de texto en un ObjectId
+        ObjectId id = new ObjectId(idStr);
+
+        // Crear el filtro para la consulta
+        Bson filtro = new Document("_id", id);
+
+        // Pedir al usuario la nueva fecha
+        System.out.println("Introduzca la nueva fecha (en formato yyyy-MM-dd HH:mm:ss): ");
+        String nuevaFechaStr = sc.nextLine();
+
+        // Convertir la cadena de texto en un objeto Date
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss"); // Ejemplo 2024-02-14 11:11:11
+        Date nuevaFecha;
+        try {
+            nuevaFecha = dateFormat.parse(nuevaFechaStr);
+        } catch (ParseException e) {
+            System.out.println("Formato de fecha incorrecto. Asegúrese de utilizar el formato yyyy-MM-dd HH:mm:ss.");
+            return;
+        }
+
+        // Crear el documento de actualización
+        Bson update = new Document("$set", new Document("fecha", nuevaFecha));
+
+        // Actualizar el registro utilizando updateOne()
         try (MongoClient mongoClient = MongoClients.create("mongodb://localhost:27017")) {
-            System.out.println("Conexión exitosa a MongoDB.");
+            MongoDatabase database = mongoClient.getDatabase("miBaseDeDatos");
+            MongoCollection<Document> collection = database.getCollection("micoleccion");
 
-            String introducir_nombre_BD = "";
-            String introducir_nombre_coleccion = "";
+            UpdateResult result = collection.updateOne(filtro, update);
 
-            System.out.println("¿Introduce el nombre de la base de datos?");
-            introducir_nombre_BD = sc.next();
-            System.out.println("¿Introduce el nombre de la Colección?");
-            introducir_nombre_coleccion = sc.next();
-
-            MongoDatabase database = mongoClient.getDatabase(introducir_nombre_BD);
-            MongoCollection<Document> collection = database.getCollection(introducir_nombre_coleccion);
-
-            System.out.println("Introduce el campo para borrar registros:");
-            String campo = sc.next();
-
-            System.out.println("Introduce el valor para borrar registros:");
-            String valor = sc.next();
-
-            // Crear un filtro basado en el campo y el valor proporcionados
-            Document filterDocument = new Document(campo, valor);
-
-            // Borrar todos los documentos que coincidan con el filtro
-            DeleteResult result = collection.deleteMany(filterDocument);
-
-            if (result.getDeletedCount() > 0) {
-                System.out.println("Registros borrados exitosamente.");
+            if (result.getModifiedCount() == 1) {
+                System.out.println("Registro actualizado exitosamente.");
             } else {
-                System.out.println("No se encontraron registros que coincidan con el filtro proporcionado.");
+                System.out.println("No se encontró ningún registro con el ID especificado.");
             }
-
         } catch (Exception e) {
             System.err.println("Error al conectar a MongoDB: " + e.getMessage());
         }
     }
+
+    private static void borrar_registro() {
+        Scanner sc = new Scanner(System.in);
+
+        // Pedir al usuario el ID del registro a eliminar
+        System.out.println("Introduzca el ID del registro que desea eliminar: ");
+        String idStr = sc.nextLine();
+
+        // Convertir la cadena de texto en un ObjectId
+        ObjectId id = new ObjectId(idStr);
+
+        // Crear el filtro para la consulta
+        BsonDocument filtro = new BsonDocument("_id", new BsonObjectId(id));
+
+        // Eliminar el registro utilizando deleteOne()
+        try (MongoClient mongoClient = MongoClients.create("mongodb://localhost:27017")) {
+            MongoDatabase database = mongoClient.getDatabase("miBaseDeDatos");
+            MongoCollection<Document> collection = database.getCollection("micoleccion");
+
+            DeleteResult result = collection.deleteOne(filtro);
+
+            if (result.getDeletedCount() == 1) {
+                System.out.println("Registro eliminado exitosamente.");
+            } else {
+                System.out.println("No se encontró ningún registro con el ID especificado.");
+            }
+        } catch (Exception e) {
+            System.err.println("Error al conectar a MongoDB: " + e.getMessage());
+        }
+    }
+
+
 
     private static void contabilizar_numero_registros() {
         Scanner sc = new Scanner(System.in);
@@ -156,33 +204,35 @@ public class Main {
 
     private static void busqueda_registros() {
         Scanner sc = new Scanner(System.in);
-        try (MongoClient mongoClient =  MongoClients.create("mongodb://localhost:27017")){
-            System.out.println("Conexión exitosa a MongoDB.");
 
-            String introducir_nombre_BD="";
-            String introducir_nombre_coleccion="";
+        // Pedir al usuario el ID del registro a buscar
+        System.out.println("Introduzca el ID del registro que desea buscar: ");
+        String idStr = sc.nextLine();
 
-            System.out.println("¿introduce el nombre de la base de datos?");
-            introducir_nombre_BD= sc.next();
-            System.out.println("¿ el nombre de la Coleccion?");
-            introducir_nombre_coleccion= sc.next();
+        // Convertir la cadena de texto en un ObjectId
+        ObjectId id = new ObjectId(idStr);
 
+        // Crear el filtro para la consulta
+        Bson filtro = new Document("_id", id);
 
-            MongoDatabase database = mongoClient.getDatabase(introducir_nombre_BD);
-            MongoCollection<Document> collection = database.getCollection(introducir_nombre_coleccion);
+        // Realizar la búsqueda utilizando find()
+        try (MongoClient mongoClient = MongoClients.create("mongodb://localhost:27017")) {
+            MongoDatabase database = mongoClient.getDatabase("miBaseDeDatos");
+            MongoCollection<Document> collection = database.getCollection("micoleccion");
 
-            System.out.println("Documentos en la coleccion");
+            FindIterable<Document> result = collection.find(filtro);
 
-            FindIterable<Document> documents = collection.find();
-
-            for (Document document: documents) {
-                System.out.println(document.toJson());
+            if (result.iterator().hasNext()) {
+                // Mostrar el resultado de la búsqueda
+                for (Document document : result) {
+                    System.out.println(document.toJson());
+                }
+            } else {
+                System.out.println("No se encontró ningún registro con el ID especificado.");
             }
-
-        }catch (Exception e){
-            System.err.println("Error al conectar a mongoDB: " + e.getMessage());
+        } catch (Exception e) {
+            System.err.println("Error al conectar a MongoDB: " + e.getMessage());
         }
-
     }
 
     private static void MongoDBToTextFile() {
